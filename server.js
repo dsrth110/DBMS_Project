@@ -8,6 +8,7 @@ const crypto = require('crypto');
 
 //path for establishing database connection
 const db = require('./utility/database');
+const { error } = require('console');
 
 //declaring express instance
 const server = express();
@@ -118,7 +119,7 @@ server.post('/api/signin', async(rqst, rspn) => {
             });
             
             console.log(UData);
-            const token = jwt.sign({Id: Id,}, 'user_ko_secretKey');
+            const token = jwt.sign({Id: Id, Name: UData.name, Role: UData.role}, 'user_ko_secretKey');
 
             rspn.status(201).json({
                 success:'true',
@@ -214,7 +215,6 @@ server.put('/api/update_item', async (rqst, rspn) => {
   }
 });
 
-
 //Delete an item
 server.delete('/api/delete_item', async (rqst, rspn) => {
   const { item_id } = rqst.body;
@@ -234,17 +234,31 @@ server.post('/api/buy',authenticateToken, async (rqst, rspn) => {
   const { token, item_id } = rqst.body;
 
   try {
-    //decode token 
-    //fetch data
-    const [user] = await db.execute('SELECT available_balance FROM users WHERE id = ?', [id]);
+    let decodedToken;
+    try {
+        decodedToken = jwt.verify(token,'user_ko_secretKey')
+        console.log(decodedToken);
+      }catch(err){
+        console.error('Error decoding token', err);
+      }
+    const [user] = await db.execute('SELECT * FROM customer_info WHERE id = ?', [decodedToken.Id]);
+    const [item] = await db.execute('SELECT * FROM items WHERE item_id = ?', [item_id]);
+    const [Fuser]= user;
+    const Fitem = item[0]; 
+    console.log(Fuser);
+    console.log(Fitem);
 
     //see if the available balance is sufficient
-    if (user && user[0] && user[0].available_balance >= item_price) {
-    
-        //place an order
-        //delete order
-
-      rspn.json({ success: true, available_balance: new_balance });
+    if (Fuser.available_balance >= Fitem.price) {
+      const updated_balance = Fuser.available_balance - Fitem.price;
+      db.execute('UPDATE customer_info SET available_balance= ? WHERE id= ?',[updated_balance,Fuser.id])
+      .then(result =>{
+        rspn.status(200).json({available_balance: updated_balance});
+      })
+      .catch(err  => {
+        console.log(err);
+        rspn.status(500).json({error: 'Error fetching data'});
+    });
     } else {
       rspn.json({ success: false, message: 'Insufficient balance' });
     }
@@ -254,19 +268,29 @@ server.post('/api/buy',authenticateToken, async (rqst, rspn) => {
   }
 });
 
-
 //Load balance
 server.post('/api/load_balance',authenticateToken, async (rqst, rspn) => {
   const { token, amount } = rqst.body;
-
   try {
-    //decode token and add the balance to the account
-    await db.execute('UPDATE items SET available_balance WHERE id=?', [new_balance, id]); 
-    rspn.json({ success: true, message: 'Amount Loaded', available_balance: new_balance });
-  } catch (error) {
-    console.error('Error loading balance:', error);
-    rspn.status(500).json({ success: false, message:'' });
-    }});
+    let decodedToken;
+    try {
+        decodedToken = jwt.verify(token,'user_ko_secretKey')
+        console.log(decodedToken);
+      }catch(err){
+        console.error('Error decoding token', err);
+      }
+      db.execute('UPDATE customer_info SET available_balance= available_balance + ? WHERE id= ?',[amount,decodedToken.Id])
+      .then(result =>{
+        rspn.status(200).json({success:true});
+      })
+      .catch(err  => {
+        console.log(err);
+        rspn.status(500).json({error: 'Error fetching data'});
+    });
+  } catch (err) {
+    console.error('Error loading balance:', err);
+    rspn.status(500).json({ success: false, message: 'Error while buying item' });
+  }});
 
 server.use((rqst, rspn, next)=>{
     rspn.status(404).json();
