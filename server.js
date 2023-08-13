@@ -8,7 +8,6 @@ const crypto = require('crypto');
 
 //path for establishing database connection
 const db = require('./utility/database');
-const { error } = require('console');
 
 //declaring express instance
 const server = express();
@@ -39,7 +38,7 @@ server.post('/api/signup', async(rqst,rspn) => {
         
         const [existingUser] = await db.execute('SELECT * FROM customer_info WHERE id = ?', [Id]); // ANDing with 'Name' leads to possible duplications
         if (existingUser.length > 0){
-            return rspn.status(409).json({success:'false',message: 'Duplication: Unable to sign-up'});
+            return rspn.status(409).json({success:false, message: 'Duplication: Unable to sign-up'});
         }
 
         const hashPass = await bcrypt.hash(Password, 10);
@@ -54,16 +53,16 @@ server.post('/api/signup', async(rqst,rspn) => {
         const token = jwt.sign({Id: Fuser.id, Name: Fuser.name, Role:'customer'}, 'user_ko_secretKey');
 
         rspn.status(201).json({
-            success:'true',
+            success:true,
             message: 'Signed Up Successfully',
             Id: Fuser.id, Balance: Fuser.available_balance,
             token: token,
-            isAdmin: 'false'});
+            isAdmin: false});
         console.log(result);
 
     }catch(err){
         console.error('Error registering user: ', err);
-        rspn.status(500).json({success:'false',message: 'Unable to sign-up'});
+        rspn.status(500).json({success:false, message: 'Unable to sign-up'});
     }
 });
 
@@ -81,11 +80,11 @@ server.post('/api/signin', async(rqst, rspn) => {
         }
         bcrypt.compare(Password, Fuser.hashed_password, async(err, isMatch) => {
             if (err){
-                return rspn.status(500).json({error: 'Verification failed'});
+                return rspn.status(500).json({success: false, error: 'Verification failed'});
             }
     
             if(!isMatch){
-                return rspn.status(401).json({error: 'Invalid Credentials'});
+                return rspn.status(401).json({success: false, error: 'Invalid Credentials'});
             }
 
             let isAdmin = false;
@@ -100,7 +99,7 @@ server.post('/api/signin', async(rqst, rspn) => {
             })
             .catch(err => {
                 console.log(err);
-                rspn.status(500).json({error: 'Error fetching data'});
+                rspn.status(500).json({success: false, error: 'Error fetching data'});
             });
 
             await db.execute('SELECT * FROM admin_info WHERE id = ?', [Id])
@@ -113,14 +112,14 @@ server.post('/api/signin', async(rqst, rspn) => {
             })
             .catch(err => {
                 console.log(err);
-                rspn.status(500).json({error: 'Error fetching data'});
+                rspn.status(500).json({success: false, error: 'Error fetching data'});
             });
             
             console.log(UData);
             const token = jwt.sign({Id: Id, Name: UData.name, Role: UData.role}, 'user_ko_secretKey');
 
             rspn.status(201).json({
-                success:'true',
+                success:true,
                 message: 'Signed Up Successfully',
                 token: token,
                 balance: UData.available_balance,
@@ -129,7 +128,7 @@ server.post('/api/signin', async(rqst, rspn) => {
     })
     .catch(err => {
         console.log(err);
-        rspn.status(500).json({error: 'Error fetching data'});
+        rspn.status(500).json({success: false, error: 'Error fetching data'});
     });
 
 });
@@ -139,12 +138,12 @@ const authenticateToken= (rqst, rspn, next)=>{
     const {token} = rqst.body;
 
     if (!token){
-        return rspn.status(401).json({error: 'Unauthorized: Token not found'});
+        return rspn.status(401).json({success: false, error: 'Unauthorized: Token not found'});
     }
 
     jwt.verify(token, 'user_ko_secretKey', (err, user)=>{
         if (err){
-            return rspn.status(403).json({error: 'Forbidden: Invalid Token'});
+            return rspn.status(403).json({success: false, error: 'Forbidden: Invalid Token'});
         }
         rqst.user = user;
         next();
@@ -155,11 +154,10 @@ server.post('/api/userdetails',authenticateToken,async(rqst, rspn) => {
     try{        
         const [result] = await db.execute('SELECT * FROM customer_info');
     const [Fuser] = result;         
-
-        rspn.json(result);
+        rspn.json({success: false, data: result});
       } catch (err) {
         console.error('Error fetching items:', err);
-        rspn.status(500).json({ error: 'Error finding items' });
+        rspn.status(500).json({ success: false, error: 'Error finding items' });
       }
     });
 
@@ -168,10 +166,10 @@ server.post('/api/search', async (rqst, rspn) => {
 try{
   const { keyword, category } = rqst.body;
     const [items] = await db.execute('SELECT * FROM items WHERE item_name LIKE ? AND category = ?', [`%${keyword}%`, category]);
-    rspn.json({ data: items });
+    rspn.json({ success: true, data: items });
   } catch (err) {
     console.error('Error fetching items:', err);
-    rspn.status(500).json({ error: 'Error finding items' });
+    rspn.status(500).json({ success: false, error: 'Error finding items' });
   }
 });
 
@@ -238,6 +236,7 @@ server.post('/api/buy',authenticateToken, async (rqst, rspn) => {
         console.log(decodedToken);
       }catch(err){
         console.error('Error decoding token', err);
+        rspn.json({success: false, message: "Error decoding token "});
       }
     const [user] = await db.execute('SELECT * FROM customer_info WHERE id = ?', [decodedToken.Id]);
     const [item] = await db.execute('SELECT * FROM items WHERE item_id = ?', [item_id]);
@@ -251,11 +250,11 @@ server.post('/api/buy',authenticateToken, async (rqst, rspn) => {
       const updated_balance = Fuser.available_balance - Fitem.price;
       db.execute('UPDATE customer_info SET available_balance= ? WHERE id= ?',[updated_balance,Fuser.id])
       .then(result =>{
-        rspn.status(200).json({available_balance: updated_balance});
+        rspn.status(200).json({success: true, available_balance: updated_balance});
       })
       .catch(err  => {
         console.log(err);
-        rspn.status(500).json({error: 'Error fetching data'});
+        rspn.status(500).json({success: false, error: 'Error fetching data'});
     });
     } else {
       rspn.json({ success: false, message: 'Insufficient balance' });
@@ -276,6 +275,7 @@ server.post('/api/load_balance',authenticateToken, async (rqst, rspn) => {
         console.log(decodedToken);
       }catch(err){
         console.error('Error decoding token', err);
+        rspn.json({success: false, message:" Error decoding token"});
       }
       db.execute('UPDATE customer_info SET available_balance= available_balance + ? WHERE id= ?',[amount,decodedToken.Id])
       .then(result =>{
@@ -283,7 +283,7 @@ server.post('/api/load_balance',authenticateToken, async (rqst, rspn) => {
       })
       .catch(err  => {
         console.log(err);
-        rspn.status(500).json({error: 'Error fetching data'});
+        rspn.status(500).json({success: false, error: 'Error fetching data'});
     });
   } catch (err) {
     console.error('Error loading balance:', err);
@@ -291,7 +291,7 @@ server.post('/api/load_balance',authenticateToken, async (rqst, rspn) => {
   }});
 
 server.use((rqst, rspn, next)=>{
-    rspn.status(404).json();
+    rspn.status(404).json({success: false, message: 'Page not found'});
 });
  
 server.listen(5000, ()=>{
