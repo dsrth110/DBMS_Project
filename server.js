@@ -23,8 +23,6 @@ server.use(bodyParser.urlencoded({extended:false}));
 server.use(bodyParser.json());
 
 const user_ko_secretKey = crypto.randomBytes(32).toString('hex');
-console.log(user_ko_secretKey);
-
 
 //every request arrives here, having a look into it
 server.use((rqst, rspn, next)=> {
@@ -79,7 +77,7 @@ server.post('/api/signin', async(rqst, rspn) => {
         const [Fuser] = refresult;
 
         if(refresult.length === 0){  //at least an object is returned every time so makes no sense
-            return rspn.status(401).json({error: 'User not found'});
+            return rspn.status(401).json({success: false, error: 'User not found'});
         }
         bcrypt.compare(Password, Fuser.hashed_password, async(err, isMatch) => {
             if (err){
@@ -125,8 +123,8 @@ server.post('/api/signin', async(rqst, rspn) => {
                 success:'true',
                 message: 'Signed Up Successfully',
                 token: token,
+                balance: UData.available_balance,
                 isAdmin: isAdmin});
-    
         } );
     })
     .catch(err => {
