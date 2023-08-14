@@ -228,7 +228,7 @@ try{
 });
 
 //Fetch an item
-server.post('/api/fetch_item', async (rqst, rspn) => {
+server.put('/api/fetch_item', async (rqst, rspn) => {
     try {
       const [items] = await db.execute('SELECT * FROM items');
       rspn.json({ success: true, data: items });
@@ -252,7 +252,7 @@ server.post('/api/add_item', async (rqst, rspn) => {
 });
 
 //Update an item
-server.put('/api/update_item', async (rqst, rspn) => {
+server.post('/api/update_item', async (rqst, rspn) => {
   const { item_id, item_name, image, category, price, quantity} = rqst.body;
 
   try {
@@ -265,6 +265,7 @@ server.put('/api/update_item', async (rqst, rspn) => {
   }
 });
 
+
 //Delete an item
 server.delete('/api/delete_item', async (rqst, rspn) => {
   const { item_id } = rqst.body;
@@ -275,6 +276,58 @@ server.delete('/api/delete_item', async (rqst, rspn) => {
   } catch (error) {
     console.error('Error deleting item:', error);
     rspn.json({ success: false, message: 'Error while deleting item' });
+  }
+});
+
+//Placing an order
+server.post('/api/place_order', async (rqst, rspn) => {
+  const { UserId, ItemId, Quantity } = rqst.body;
+
+  try {
+    let [result] = await db.execute('SELECT price FROM items WHERE item_id = ?', [ItemId]);
+    [Fitem] = result;
+    const TotalPrice = Quantity* Fitem.price;
+    await db.execute('INSERT INTO order_details (id, item_id, quantity, total_price) VALUES (?, ?, ?, ?)', [UserId,ItemId, Quantity, TotalPrice]);
+    [result] = await db.execute('SELECT * FROM order_details ORDER BY update_time DESC LIMIT 1');
+    [Fitem] = result;
+    rspn.json({ success: true, message: 'Order placed Successfully', order_id: Fitem.order_id, TotalPrice: Fitem.total_price});
+  } catch (error) {
+    console.error('Error adding item:', error);
+    rspn.json({ success: false, message: 'Error placing order' });
+  }
+});
+
+//Update an order
+server.post('/api/update_order', async (rqst, rspn) => {
+  const {order_id, Quantity} = rqst.body;
+
+  try {
+    let [result] = await db.execute('SELECT item_id FROM order_details WHERE order_id = ?', [order_id]);
+    [result] = await db.execute('SELECT price FROM items WHERE item_id = ?', [result[0].item_id]);
+
+    [Fitem] = result;
+    const TotalPrice = Quantity* Fitem.price;
+    await db.execute('UPDATE order_details SET quantity= ?,total_price = ? WHERE order_id=?', [Quantity, TotalPrice, order_id]);
+    [result] = await db.execute('SELECT * FROM order_details ORDER BY update_time DESC LIMIT 1');
+    [Fitem] = result;
+    rspn.json({ success: true, message: 'Order updated Successfully', TotalPrice: Fitem.total_price});
+  } catch (error) {
+    console.error('Error updating item:', error);
+    rspn.json({ success: false, message: 'Error updating order' });
+  }
+});
+
+
+//Cancel an order
+server.delete('/api/cancel_order', async (rqst, rspn) => {
+  const { order_id } = rqst.body;
+
+  try {
+    await db.execute('DELETE FROM order_details WHERE order_id = ?', [order_id]);
+    rspn.json({ success: true, message: 'Order Cancelled Successfully' });
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    rspn.json({ success: false, message: 'Error cancelling order' });
   }
 });
 
