@@ -202,7 +202,7 @@ const authenticateToken= (rqst, rspn, next)=>{
     });
 };
 
-server.put('/api/userdetails',authenticateToken,async(rqst, rspn) => {
+server.get('/api/userdetails',authenticateToken,async(rqst, rspn) => {
     try{        
         const [result] = await db.execute('SELECT * FROM customer_info');
     const [Fuser] = result;         
@@ -226,7 +226,7 @@ try{
 });
 
 //Fetch an item
-server.put('/api/fetch_item', async (rqst, rspn) => {
+server.get('/api/fetch_item', async (rqst, rspn) => {
     try {
       const [items] = await db.execute('SELECT * FROM items');
       rspn.json({ success: true, data: items });
