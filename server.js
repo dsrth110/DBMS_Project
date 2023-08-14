@@ -61,7 +61,7 @@ server.post('/api/signup', async(rqst,rspn) => {
             success:true,
             message: 'Customer Signed Up Successfully',
             Id: Fuser.id,
-            Id: Fuser.name,
+            Name: Fuser.name,
             Balance: Fuser.available_balance,
             token: token,
             isAdmin: false});
@@ -173,6 +173,8 @@ server.post('/api/signin', async(rqst, rspn) => {
             rspn.json({
                 success:true,
                 message: 'Signed In Successfully',
+                Id:UData.id,
+                Name: UData.name,
                 token: token,
                 balance: UData.available_balance,
                 isAdmin: isAdmin});
@@ -216,8 +218,8 @@ server.get('/api/userdetails',authenticateToken,async(rqst, rspn) => {
 //Search
 server.post('/api/search', async (rqst, rspn) => {
 try{
-  const { keyword, category } = rqst.body;
-    const [items] = await db.execute('SELECT * FROM items WHERE item_name LIKE ? AND category = ?', [`%${keyword}%`, category]);
+  const { keyword} = rqst.body;
+    const [items] = await db.execute('SELECT * FROM items WHERE item_name LIKE ?', [`%${keyword}%`, category]);
     rspn.json({ success: true, data: items });
   } catch (err) {
     console.error('Error fetching items:', err);
@@ -238,10 +240,10 @@ server.get('/api/fetch_item', async (rqst, rspn) => {
 
 //Adding an item
 server.post('/api/add_item', async (rqst, rspn) => {
-  const { item_id, item_name, image, category, price } = rqst.body;
+  const { item_id, item_name, image, category, price,unit } = rqst.body;
 
   try {
-    await db.execute('INSERT INTO items (item_id, item_name, image, category, price, quantity) VALUES (?, ?, ?, ?, ?, ?)', [item_id, item_name, image, category, price,0]);
+    await db.execute('INSERT INTO items (item_id, item_name, image, category, price, unit) VALUES (?, ?, ?, ?, ?, ?)', [item_id, item_name, image, category, price,unit]);
     rspn.json({ success: true, message: 'Item Added Successfully' });
   } catch (error) {
     console.error('Error adding item:', error);
@@ -251,10 +253,10 @@ server.post('/api/add_item', async (rqst, rspn) => {
 
 //Update an item
 server.post('/api/update_item', async (rqst, rspn) => {
-  const { item_id, item_name, image, category, price, quantity} = rqst.body;
+  const { item_id, item_name, image, category, price, unit} = rqst.body;
 
   try {
-    await db.execute('UPDATE items SET item_name= ?, image= ?, category= ?, price= ?, quantity=? WHERE item_id=?', [item_name, image, category, price, quantity, item_id]);
+    await db.execute('UPDATE items SET item_name= ?, image= ?, category= ?, price= ?, unit=? WHERE item_id=?', [item_name, image, category, price, unit, item_id]);
 
     rspn.json({ success: true, message: 'Item updated Successfully' });
   } catch (error) {
