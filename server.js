@@ -74,7 +74,7 @@ server.post('/api/signup', async(rqst,rspn) => {
 });
 
 //register new admin - sign>up
-server.post('/api/admin/register', async(rqst,rspn) => {
+server.post('/api/admin/register',authenticateToken ,async(rqst,rspn) => {
   const { Id, Name, Address, Phone, Password} = rqst.body;
 
   try {
@@ -116,8 +116,6 @@ server.post('/api/admin/register', async(rqst,rspn) => {
       rspn.json({success:false, message: 'Unable to sign-up'});
   }
 });
-
-
 
 
 //existing user - sign>in
@@ -204,7 +202,7 @@ const authenticateToken= (rqst, rspn, next)=>{
     });
 };
 
-server.post('/api/userdetails',authenticateToken,async(rqst, rspn) => {
+server.put('/api/userdetails',authenticateToken,async(rqst, rspn) => {
     try{        
         const [result] = await db.execute('SELECT * FROM customer_info');
     const [Fuser] = result;         
@@ -267,7 +265,7 @@ server.post('/api/update_item', async (rqst, rspn) => {
 
 
 //Delete an item
-server.delete('/api/delete_item', async (rqst, rspn) => {
+server.post('/api/delete_item', async (rqst, rspn) => {
   const { item_id } = rqst.body;
 
   try {
@@ -318,7 +316,7 @@ server.post('/api/update_order', async (rqst, rspn) => {
 });
 
 //Cancel an order
-server.delete('/api/cancel_order', async (rqst, rspn) => {
+server.post('/api/cancel_order', async (rqst, rspn) => {
   const { order_id } = rqst.body;
 
   try {
