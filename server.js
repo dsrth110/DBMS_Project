@@ -317,7 +317,6 @@ server.post('/api/update_order', async (rqst, rspn) => {
   }
 });
 
-
 //Cancel an order
 server.delete('/api/cancel_order', async (rqst, rspn) => {
   const { order_id } = rqst.body;
