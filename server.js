@@ -74,7 +74,7 @@ server.post('/api/signup', async(rqst,rspn) => {
 });
 
 //register new admin - sign>up
-server.post('/api/admin/register',authenticateToken ,async(rqst,rspn) => {
+server.post('/api/admin/register' ,async(rqst,rspn) => {
   const { Id, Name, Address, Phone, Password} = rqst.body;
 
   try {
@@ -333,7 +333,7 @@ server.post('/api/cancel_order', async (rqst, rspn) => {
 
 //Buy item
 server.post('/api/buy',authenticateToken, async (rqst, rspn) => {
-  const { token, item_id } = rqst.body;
+  const { token, order_id } = rqst.body;
 
   try {
     let decodedToken;
@@ -345,15 +345,15 @@ server.post('/api/buy',authenticateToken, async (rqst, rspn) => {
         rspn.json({success: false, message: "Error decoding token "});
       }
     const [user] = await db.execute('SELECT * FROM customer_info WHERE id = ?', [decodedToken.Id]);
-    const [item] = await db.execute('SELECT * FROM items WHERE item_id = ?', [item_id]);
+    const [order] = await db.execute('SELECT * FROM order_details WHERE order_id = ?', [order_id]);
     const [Fuser]= user;
-    const Fitem = item[0]; 
+    const Forder = order[0]; 
     console.log(Fuser);
-    console.log(Fitem);
+    console.log(Forder);
 
     //see if the available balance is sufficient
-    if (Fuser.available_balance >= Fitem.price) {
-      const updated_balance = Fuser.available_balance - Fitem.price;
+    if (Fuser.available_balance >= Forder.total_price) { //compare with order price
+      const updated_balance = Fuser.available_balance - Forder.total_price;
       db.execute('UPDATE customer_info SET available_balance= ? WHERE id= ?',[updated_balance,Fuser.id])
       .then(result =>{
         rspn.json({success: true, available_balance: updated_balance});
